@@ -10,7 +10,6 @@ public class Daemon {
                 showUsage();
             }
         } catch (IllegalArgumentException e) {
-
             System.err.println("Error: " + e.getMessage());
         } catch (Exception e) {
             e.printStackTrace(System.err);
@@ -18,11 +17,10 @@ public class Daemon {
     }
 
     private Daemon(int port) {
-        HttpDaemon httpDaemon = new HttpDaemon(port);
-        httpDaemon.
+        new HttpDaemon(port);
     }
 
-    private void showUsage() {
+    private static void showUsage() {
 
     }
 }

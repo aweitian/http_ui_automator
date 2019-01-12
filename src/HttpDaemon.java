@@ -2,7 +2,7 @@
 package ret.sec.oxygenauto;
 
 import android.accessibilityservice.AccessibilityService;
-import android.app.ActivityManagerNative;
+//import android.app.ActivityManagerNative;
 import android.app.IActivityManager;
 import android.app.UiAutomation;
 import android.app.UiAutomationConnection;
@@ -56,9 +56,10 @@ import static android.hardware.input.InputManager.INJECT_INPUT_EVENT_MODE_ASYNC;
 
 
 public class HttpDaemon {
+    private static int heart_beat_count = 0;
     private MockWebServer server = new MockWebServer();
 
-    private HttpDaemon(int port) {
+    public HttpDaemon(int port) {
         this.startHttp(port);
     }
 
@@ -101,17 +102,23 @@ public class HttpDaemon {
 
     public void stop() {
         try {
+//            System.out.println("stopping...");
             server.shutdown();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private boolean preFilter(MockResponse remotePeer, JSONObject cmd) throws RemoteException {
+    private boolean preFilter(MockResponse remotePeer, JSONObject cmd) throws RemoteException, JSONException {
         String action = cmd.getString("action");
         switch (action) {
             case "exit":
+//                output(remotePeer, "exit ok", "0");
                 this.stop();
+                return true;
+            case "heartBeat":
+                heart_beat_count++;
+                output(remotePeer, heart_beat_count + "", "0");
                 return true;
             default:
                 return false;
@@ -127,6 +134,7 @@ public class HttpDaemon {
      */
     private void procedureCmd(MockResponse remotePeer, String cmd) throws RemoteException {
         try {
+            Log.d("Garri", "Recv:" + cmd);
             JSONObject j_cmd = new JSONObject(cmd);
             if (this.preFilter(remotePeer, j_cmd)) {
                 return;
@@ -144,21 +152,14 @@ public class HttpDaemon {
         r.setBody(cmd.toString());
     }
 
-    private void unknowCmd(MockResponse remotePeer, String text) {
-        JSONObject cmd = new JSONObject();
-        try {
-            cmd.put("code", 1);
-            cmd.put("message", "unknown cmd:" + text);
-            response(remotePeer, cmd);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+    private void error(MockResponse remotePeer, String text) {
+        output(remotePeer, text, "1");
     }
 
-    private void error(MockResponse remotePeer, String text) {
+    private void output(MockResponse remotePeer, String text, String code) {
         JSONObject cmd = new JSONObject();
         try {
-            cmd.put("code", 1);
+            cmd.put("code", code);
             cmd.put("message", text);
             response(remotePeer, cmd);
         } catch (JSONException e) {
