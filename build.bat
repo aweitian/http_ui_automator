@@ -1,7 +1,8 @@
 @echo off
 set APP_HOME=%~dp0
 del daemon.dex
-javac -Xlint:deprecation ^
+rem javac -Xlint:deprecation ^
+javac   ^
     -bootclasspath %APP_HOME%/lib/android.jar; ^
     -encoding utf-8 -source 1.7 -target 1.7 -d "./output" ^
     -cp "%APP_HOME%/lib/okhttp-3.11.0.jar;%APP_HOME%/lib/mockwebserver-3.11.0.jar;%APP_HOME%/lib/okio-1.14.0.jar;%APP_HOME%/lib/my-mockwebserver-3.11.0.jar" ^
