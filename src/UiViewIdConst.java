@@ -1,4 +1,4 @@
-package ret.sec.oxygenauto;
+package ret.sec.oxygenauto.daemon;
 
 public class UiViewIdConst {
     //微信版本 7.0.0

@@ -1,5 +1,5 @@
 //package zsh.jl.zshui;
-package ret.sec.oxygenauto;
+package ret.sec.oxygenauto.daemon;
 
 import android.accessibilityservice.AccessibilityService;
 //import android.app.ActivityManagerNative;

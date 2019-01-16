@@ -1,5 +1,5 @@
 //package zsh.jl.zshui;
-package ret.sec.oxygenauto;
+package ret.sec.oxygenauto.daemon;
 
 public class Daemon {
     public static void main(String[] args) {
