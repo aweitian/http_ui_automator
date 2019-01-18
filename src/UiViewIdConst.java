@@ -1,7 +1,55 @@
 package ret.sec.oxygenauto.daemon;
 
 public class UiViewIdConst {
-    //微信版本 7.0.0
+
+    public static String NEXT_STEP_VPN_START = "vpn_start";
+    public static String NEXT_STEP_OXYGEN_START = "oxygen_start";
+    public static String NEXT_STEP_OXYGEN_STOP = "oxygen_stop";
+    public static String NEXT_STEP_VPN_STOP = "vpn_stop";
+    public static String NEXT_STEP_SLEEP = "sleep";
+
+
+
+
+
+
+
+
+
+    //ADB 总结:https://mazhuang.org/awesome-adb/#%E6%9F%A5%E7%9C%8B%E5%89%8D%E5%8F%B0-activity
+
+    //NEW OXYGEN 7.16.0
+
+    //验证用于验证APP是否可用
+    //根据serialno来获取手机号密码，关键词  getprop ro.serialno
+
+
+    //手机号密码,搜索关键词保存到bd.52733999.com上
+
+    //action:NEW
+    //CLIENT向 SVC提交一个任务,KW,VPN_HOST,VPN_USER,VPN_PASS,THUMBUP,PERCENT,PAGE
+    //svc查询当前没有任务在运行，有返回FALSE，没有返回TRUE
+
+    //action:query 查询当前有没有任务，有，返回当前任务进度，没有，返回当前任务已完成
+
+
+    //SVC有一个当前STEP，每个STEP里面根据界面ID来点击
+
+
+    //request
+    //step:home/vpn_connect/oxygen/close_oxygen/close_vpn
+    //forward:next/back
+
+    //home(1)
+    //vpn_connect(2) : main/vpn/add/connect
+    //oxygen() : main/my/login/
+    //
+
+    //response
+    //next step:
+    //next forward
+    //CLIENT端保存当前STEP
+
 
     //NEXT函数
         //有搜索按钮就点搜索按钮                    next

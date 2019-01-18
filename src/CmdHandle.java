@@ -1,22 +1,33 @@
 package ret.sec.oxygenauto.daemon;
 
+import android.app.ActivityManager;
 import android.app.ActivityManagerNative;
 import android.app.IActivityManager;
 import android.app.UiAutomation;
 import android.app.UiAutomationConnection;
 import android.content.ComponentName;
+import android.content.Intent;
+import android.content.pm.IPackageManager;
+import android.content.pm.ResolveInfo;
 import android.os.Build;
 import android.os.HandlerThread;
 import android.os.RemoteException;
+import android.os.ServiceManager;
 import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.List;
 import java.util.Objects;
 
 import okhttp3.mockwebserver.MockResponse;
@@ -27,6 +38,7 @@ public class CmdHandle {
     private MockResponse mockResponse;
     private JSONObject cmd;
     private static String lastErr;
+    private String ime_lists;
 
     public void handle(MockResponse remotePeer, JSONObject c) throws JSONException {
         this.mockResponse = remotePeer;
@@ -51,6 +63,13 @@ public class CmdHandle {
 
 
     //### API ########################################################################
+
+
+    public void nextApi() {
+//        Intent vpnIntent = new Intent();
+//        vpnIntent.setAction("android.net.vpn.SETTINGS");
+//        mActivity.startActivity(vpnIntent);
+    }
 
 
     public void topActivityApi() throws JSONException, RemoteException {
@@ -111,7 +130,7 @@ public class CmdHandle {
 
 
     public void testApi() throws JSONException {
-        response("test", 0);
+        response(util.request_get("https://xcx.sh9l.com/oxygen_auto_verify/getTaskInfo.php?sn=29ca221a&i=2"), 0);
     }
 
 
@@ -129,13 +148,61 @@ public class CmdHandle {
         response(ms, 1);
     }
 
+    public void disableInputApi() throws JSONException {
+        ok("disabled " + disableInput() + " inputs");
+    }
+
+    public void enableInputApi() throws JSONException {
+        ok("enabled " + enableInput() + " inputs");
+    }
+
     //### API ########################################################################
 
+    private int disableInput() throws JSONException {
+        String ori_inp = run("ime list -s");
+        int i = 0;
+        String ois[] = ori_inp.split("\n");
+        for (String input : ois) {
+            if (!input.isEmpty()) {
+                run("ime disable " + input);
+                i++;
+            }
+        }
+        util.filePutContents("/data/data/ret_sec_oxygenauto_daemon_input.txt", ori_inp);
+        return i;
+    }
+
+    private int enableInput() throws JSONException {
+        String ori_inp = util.fileGetContents("/data/data/ret_sec_oxygenauto_daemon_input.txt");
+        if (ori_inp == null) {
+            return 0;
+        }
+        int i = 0;
+        String ois[] = ori_inp.split("\n");
+        for (String input : ois) {
+            if (!input.isEmpty()) {
+                run("ime enable " + input);
+                i++;
+            }
+        }
+        return i;
+    }
+
+    private void startOxygen() {
+        startActivity("com.youxiang.soyoungapp/com.youxiang.soyoungapp.ui.MainActivity");
+    }
+
+    private void startVpn() {
+        startActivity("com.android.settings/com.android.settings.MainSettings");
+    }
+
+    private void startActivity(String name) {
+        run("am start " + name);
+    }
 
     private void ok(String msg) throws JSONException {
         response(msg, 0);
     }
-
 
     private void response(Object msg, int code) throws JSONException {
         JSONObject cmd = new JSONObject();
@@ -184,15 +251,48 @@ public class CmdHandle {
                 return 2;
             } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
                 lastErr = ex.getMessage();
-                Log.e("Garri",lastErr);
+                Log.e("Garri", lastErr);
                 ex.printStackTrace();
                 return 1;
             }
         } catch (NoSuchMethodException ex) {
-            Log.e("Garri",ex.getMessage());
+            Log.e("Garri", ex.getMessage());
             ex.printStackTrace();
             return 2;
         }
+    }
+
+    static String run(String cmd) {
+        Process process;
+        try {
+            process = Runtime.getRuntime().exec("sh");
+            DataOutputStream dataOutputStream = new DataOutputStream(process.getOutputStream());
+            DataInputStream dataInputStream = new DataInputStream(process.getInputStream());
+            dataOutputStream.writeBytes(cmd + "\n");
+            dataOutputStream.writeBytes("exit\n");
+            dataOutputStream.flush();
+            InputStreamReader inputStreamReader = new InputStreamReader(
+                    dataInputStream, "UTF-8");
+            BufferedReader bufferedReader = new BufferedReader(
+                    inputStreamReader);
+            final StringBuilder out = new StringBuilder();
+            final int bufferSize = 1024;
+            final char[] buffer = new char[bufferSize];
+            for (; ; ) {
+                int rsz = inputStreamReader.read(buffer, 0, buffer.length);
+                if (rsz < 0)
+                    break;
+                out.append(buffer, 0, rsz);
+            }
+
+            bufferedReader.close();
+            inputStreamReader.close();
+            process.waitFor();
+            return out.toString();
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+        }
+        return "";
     }
 }
 

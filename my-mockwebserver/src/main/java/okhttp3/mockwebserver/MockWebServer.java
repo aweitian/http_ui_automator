@@ -444,7 +444,7 @@ public final class MockWebServer implements Closeable {
   // }
 
   private void serveConnection(final Socket raw) {
-    System.out.println("serveConnection");
+    //System.out.println("serveConnection");
     Thread thread = new Thread(new Runnable() {
       int sequenceNumber = 0;
 
