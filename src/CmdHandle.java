@@ -41,50 +41,24 @@ import okhttp3.mockwebserver.MockResponse;
 public class CmdHandle {
     private static String suffix = "Api";
     private MockResponse mockResponse;
-    private JSONObject cmd;
+    private String url;
     private static String lastErr;
     private UiAutomation mUiAutomation;
-    private HandlerThread mHandlerThread;
     private Task task;
 
-    public CmdHandle(Task task, HandlerThread mHandlerThread) {
-        this.mHandlerThread = mHandlerThread;
+    public CmdHandle(Task task) {
         this.task = task;
     }
 
-    public void handle(MockResponse remotePeer, JSONObject c) throws JSONException, RemoteException {
+    public void handle(MockResponse remotePeer, String url) throws RemoteException, JSONException {
         this.mockResponse = remotePeer;
-        this.cmd = c;
+        this.url = url;
 
-//        try {
-//            topActivityApi();
-//        } catch (RemoteException e) {
-//            e.printStackTrace();
-//        }
-        //int ret = invoke(cmd.getString("action"), this, null);
-        switch (cmd.getString("action")) {
-            case "test":
-                testApi();
-                break;
-            case "next":
+        switch (url) {
+            case "/next":
                 if (!isValidTask())
                     break;
                 nextApi();
-                break;
-            case "back":
-                if (!isValidTask())
-                    break;
-                backApi();
-                break;
-            case "done":
-                if (!isValidTask())
-                    break;
-                doneApi();
-                break;
-            case "stop":
-                if (!isValidTask())
-                    break;
-                stopApi();
                 break;
             default:
                 unknownCmd();
@@ -104,20 +78,10 @@ public class CmdHandle {
     //### API ########################################################################
 
     public void nextApi() throws RemoteException, JSONException {
-        final String HANDLER_THREAD_NAME = "UiAutomatorHandlerThread";
-        HandlerThread mHandlerThread = new HandlerThread(HANDLER_THREAD_NAME);
-        UiAutomation mUiAutomation;
-        if (!mHandlerThread.isAlive()) {
-            mHandlerThread.start();
-        }
-
-        mUiAutomation = new UiAutomation(mHandlerThread.getLooper(),
-                new UiAutomationConnection());
-        mUiAutomation.connect();
+        mUiAutomation = Daemon.mUiAutomation;
         switch (task.current_step) {
             case UiViewIdConst.NEXT_STEP_VPN_START:
                 next_step_vpn_start();
-                task.current_step = UiViewIdConst.NEXT_STEP_VPN_CHECK;
                 break;
             case UiViewIdConst.NEXT_STEP_VPN_CHECK:
                 next_step_vpn_check();
@@ -132,8 +96,6 @@ public class CmdHandle {
                 next_step_vpn_stop();
                 break;
         }
-        mUiAutomation.disconnect();
-        mUiAutomation.destroy();
 //        //主页面
 //        if (componentName.getShortClassName().equals(UiViewIdConst.ACTIVITY_NAME_MAIN)) {
 //            node = getSearchBtn();
@@ -214,136 +176,51 @@ public class CmdHandle {
 //        }
     }
 
-    public void backApi() throws RemoteException, JSONException {
-        final String HANDLER_THREAD_NAME = "UiAutomatorHandlerThread";
-        HandlerThread mHandlerThread = new HandlerThread(HANDLER_THREAD_NAME);
-        UiAutomation mUiAutomation;
-        if (!mHandlerThread.isAlive()) {
-            mHandlerThread.start();
-        }
-
-        mUiAutomation = new UiAutomation(mHandlerThread.getLooper(),
-                new UiAutomationConnection());
-        mUiAutomation.connect();
-        switch (task.current_step) {
-            case UiViewIdConst.NEXT_STEP_VPN_START:
-                next_step_vpn_start();
-                break;
-            case UiViewIdConst.NEXT_STEP_OXYGEN_START:
-                next_step_oxygen_start(mUiAutomation);
-                break;
-            case UiViewIdConst.NEXT_STEP_OXYGEN_STOP:
-                next_step_oxygen_stop(mUiAutomation);
-                break;
-            case UiViewIdConst.NEXT_STEP_VPN_STOP:
-                next_step_vpn_stop();
-                break;
-        }
-        mUiAutomation.disconnect();
-        mUiAutomation.destroy();
-    }
-
-    public void doneApi() throws RemoteException, JSONException {
-        final String HANDLER_THREAD_NAME = "UiAutomatorHandlerThread";
-        HandlerThread mHandlerThread = new HandlerThread(HANDLER_THREAD_NAME);
-        UiAutomation mUiAutomation;
-        if (!mHandlerThread.isAlive()) {
-            mHandlerThread.start();
-        }
-
-        mUiAutomation = new UiAutomation(mHandlerThread.getLooper(),
-                new UiAutomationConnection());
-        mUiAutomation.connect();
-        switch (task.current_step) {
-            case UiViewIdConst.NEXT_STEP_VPN_START:
-                next_step_vpn_start();
-                break;
-            case UiViewIdConst.NEXT_STEP_OXYGEN_START:
-                next_step_oxygen_start(mUiAutomation);
-                break;
-            case UiViewIdConst.NEXT_STEP_OXYGEN_STOP:
-                next_step_oxygen_stop(mUiAutomation);
-                break;
-            case UiViewIdConst.NEXT_STEP_VPN_STOP:
-                next_step_vpn_stop();
-                break;
-        }
-        mUiAutomation.disconnect();
-        mUiAutomation.destroy();
-    }
-
-
-    public void stopApi() throws RemoteException, JSONException {
-
-    }
-
-//    public void topActivityApi() throws JSONException, RemoteException {
-//        ok(getTopActivity());
-//    }
-//
-//    public void topPackageApi() throws JSONException, RemoteException {
-//        ok(getPackageName());
-//    }
-
-
-    public void testApi() throws JSONException, RemoteException {
-        if (isVpnConnected()) {
-            ok("connected.");
-        } else {
-            error("lost connection.");
-        }
-//        task = new Task();
-//        task.vpnServer = "sh.upptp.com";
-//        task.vpnUser = "bc022475";
-//        task.vpnPass = "8888";
-//        next_step_vpn_start();
-        //response(util.request_get("https://xcx.sh9l.com/oxygen_auto_verify/getTaskInfo.php?sn=29ca221a&i=2"), 0);
-    }
-
-
-//    public void listApi() throws JSONException {
-//        Method[] methods = this.getClass().getDeclaredMethods();
-//        JSONArray ms = new JSONArray();
-//        for (Method method : methods) {
-//            //ms[i] = methods[i].getName();
-//            int m = method.getModifiers();
-//
-//            if (Modifier.isPublic(m) && method.getParameterTypes().length == 0 && method.getName().endsWith(CmdHandle.suffix)) {
-//                ms.put(method.getName().replaceAll("Api$", ""));
-//            }
-//        }
-//        response(ms, 1);
-//    }
-
-//    public void disableInputApi() throws JSONException {
-//        ok("disabled " + disableInput() + " inputs");
-//    }
-//
-//    public void enableInputApi() throws JSONException {
-//        ok("enabled " + enableInput() + " inputs");
-//    }
-
     //### API ########################################################################
 
     private void next_step_vpn_start() throws RemoteException, JSONException {
         run("mtpd rmnet_data0 pptp " + task.vpnServer + " 1723 name " + task.vpnUser + " password " + task.vpnPass + " linkname vpn refuse-eap nodefaultroute idle 1800 mtu 1400 mru 1400 nomppe unit 0 &");
-        next(task.current_step, task.app_start_time);
+        task.current_step = UiViewIdConst.NEXT_STEP_VPN_CHECK;
+        next("已启动VPN连接：" + task.vpnServer, task.app_start_time);
     }
 
     private void next_step_vpn_check() throws RemoteException, JSONException {
-        if (isVpnConnected()) {
-            //添加路由
-            run("ip ro add default dev ppp0 table 0x3c");
-            next(task.current_step, 1);
-        } else {
-            task.current_step = UiViewIdConst.NEXT_STOP;
-            next(task.current_step, 1);
+        switch (isVpnConnected()) {
+            case 0:
+                run("ip ro add default dev ppp0 table 0x3c");
+                task.current_step = UiViewIdConst.NEXT_STEP_OXYGEN_START;
+                next(task.current_step, 1);
+
+                break;
+            case 1:
+                task.current_step = UiViewIdConst.NEXT_STEP_VPN_STOP;
+                next("VPN正在连接，网速太慢，换个VPN", task.app_start_time);
+                break;
+            default:
+                next("VPN连接不上，重新开启一个任务", -1);
+                break;
         }
     }
 
-    private boolean isVpnConnected() throws RemoteException, JSONException {
+    /**
+     * 0 已连接
+     * 1 正在连接
+     * 2 连接失败
+     *
+     * @return
+     * @throws RemoteException
+     * @throws JSONException
+     */
+    private int isVpnConnected() throws RemoteException, JSONException {
         String r = run("ps | grep mtpd");
-        return !r.isEmpty();
+        String q = run("ifconfig | grep ppp0");
+        if (!r.isEmpty() && !q.isEmpty()) {
+            return 0;
+        }
+        if (q.isEmpty()) {
+            return 1;
+        }
+        return 2;
     }
 
     private void next_step_vpn_stop() {
@@ -351,36 +228,62 @@ public class CmdHandle {
         //run("killall -9 mtpd pppd");
     }
 
-    private void next_step_oxygen_start(UiAutomation uiAutomation) {
+    private void next_step_oxygen_start(UiAutomation uiAutomation) throws JSONException {
+        AccessibilityNodeInfo node, root = uiAutomation.getRootInActiveWindow();
+        if (root.getPackageName().equals(UiViewIdConst.APP_PACKAGE_NAME)) {
+            //有广告，关广告
+            node = getById(root, UiViewIdConst.ID_APP_AD_CLOSE);
+            if (node != null) {
+                performClick(node);
+                next("有广告，先关闭广告", 2);
+                return;
+            }
+            //是否在搜索页面
+            if (getTopActivity().equals(UiViewIdConst.ACTIVITY_SEARCH_RESULT)) {
 
+            } else {
+                //登陆，搜索
+
+            }
+        } else {
+            next("App没有启动，先启动", task.app_start_time);
+            startOxygen();
+        }
     }
 
     private void next_step_oxygen_stop(UiAutomation uiAutomation) {
 
     }
 
-    private String getPackageName() throws RemoteException {
-        ComponentName componentName;
-        if (Build.VERSION.SDK_INT > 19) {
-            componentName = Objects.requireNonNull(getActivityManager()).getTasks(1, 0).get(0).topActivity;
-            return componentName.getPackageName();
-        } else {
-            //java.util.List<android.app.ActivityManager.RunningTaskInfo> = in
-            Log.e("Garri", "use reflect invoke ActivityManager.getTasks");
-        }
-        return "use reflect invoke ActivityManager.getTasks";
+    private AccessibilityNodeInfo getById(AccessibilityNodeInfo root, String id) {
+        List<AccessibilityNodeInfo> l = root.findAccessibilityNodeInfosByViewId(id);
+        if (l.size() > 0)
+            return l.get(0);
+        return null;
     }
 
-    private String getTopActivity() throws RemoteException {
-        ComponentName componentName;
-        if (Build.VERSION.SDK_INT > 19) {
-            componentName = Objects.requireNonNull(getActivityManager()).getTasks(1, 0).get(0).topActivity;
-            return componentName.getClassName();
-        } else {
-            //java.util.List<android.app.ActivityManager.RunningTaskInfo> = in
-            Log.e("Garri", "use reflect invoke ActivityManager.getTasks");
-        }
-        return "use reflect invoke ActivityManager.getTasks";
+    private AccessibilityNodeInfo getByText(AccessibilityNodeInfo root, String text) {
+        List<AccessibilityNodeInfo> l = root.findAccessibilityNodeInfosByText(text);
+        if (l.size() > 0)
+            return l.get(0);
+        return null;
+    }
+
+    public static String getTopActivity() {
+        String r = run("dumpsys activity top | grep ACTIVITY");
+        String t[] = r.split(" ");
+        if (t.length == 6)
+            return t[3];
+        return "";
+//        ComponentName componentName;
+//        if (Build.VERSION.SDK_INT > 19) {
+//            componentName = Objects.requireNonNull(getActivityManager()).getTasks(1, 0).get(0).topActivity;
+//            return componentName.getClassName();
+//        } else {
+//            //java.util.List<android.app.ActivityManager.RunningTaskInfo> = in
+//            Log.e("Garri", "use reflect invoke ActivityManager.getTasks");
+//        }
+//        return "use reflect invoke ActivityManager.getTasks";
     }
 
     private IActivityManager getActivityManager() {
@@ -423,27 +326,20 @@ public class CmdHandle {
         run("am start " + name);
     }
 
-    private void next(String cur_step, int sleep) throws JSONException {
+    /**
+     * delay -1 表示新任务
+     *
+     * @param message
+     * @param sleep
+     * @throws JSONException
+     */
+    private void next(String message, int sleep) throws JSONException {
         JSONObject cmd = new JSONObject();
         cmd.put("code", 0);
-        JSONObject data = new JSONObject();
-        data.put("next", "next");
-        data.put("delay", sleep);
-        data.put("current", cur_step);
-        cmd.put("message", "ok");
+        cmd.put("delay", sleep);
+        cmd.put("message", message);
         mockResponse.setBody(cmd.toString());
     }
-
-    private void back(int sleep) throws JSONException {
-        JSONObject cmd = new JSONObject();
-        cmd.put("code", 0);
-        JSONObject data = new JSONObject();
-        data.put("next", "back");
-        data.put("delay", sleep);
-        cmd.put("message", "ok");
-        mockResponse.setBody(cmd.toString());
-    }
-
 
     private void ok(String msg) throws JSONException {
         response(msg, 0);
@@ -467,7 +363,7 @@ public class CmdHandle {
     }
 
     private void unknownCmd() throws JSONException {
-        error("unknown cmd:" + cmd.getString("action"));
+        error("Page not found:" + url);
     }
 
     /**
@@ -547,7 +443,7 @@ public class CmdHandle {
         return "";
     }
 
-    private void pasteText(AccessibilityNodeInfo info, String text) throws RemoteException {
+    public static void pasteText(AccessibilityNodeInfo info, String text) throws RemoteException {
         IClipboard clipboardManager;
         IBinder b = ServiceManager.getService("clipboard");
         clipboardManager = IClipboard.Stub.asInterface(b);
@@ -559,11 +455,6 @@ public class CmdHandle {
         info.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
         ////粘贴进入内容
         info.performAction(AccessibilityNodeInfo.ACTION_PASTE);
-    }
-
-    public UiAutomation getUiAutomation() {
-        return new UiAutomation(mHandlerThread.getLooper(),
-                new UiAutomationConnection());
     }
 }
 

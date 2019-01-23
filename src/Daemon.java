@@ -1,7 +1,25 @@
 //package zsh.jl.zshui;
 package ret.sec.oxygenauto.daemon;
 
+import android.app.UiAutomation;
+import android.app.UiAutomationConnection;
+import android.os.HandlerThread;
+import android.os.RemoteException;
+import android.view.accessibility.AccessibilityNodeInfo;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.*;
+import java.util.List;
+
 public class Daemon {
+    private static final String HANDLER_THREAD_NAME = "UiAutomatorHandlerThread";
+    private static final HandlerThread mHandlerThread = new HandlerThread(HANDLER_THREAD_NAME);
+    public static UiAutomation mUiAutomation;
+
     public static void main(String[] args) {
         try {
             if (args.length == 4) {
@@ -21,10 +39,33 @@ public class Daemon {
         }
     }
 
+
+
     private Daemon(int thumbup, int percent, int page, int port) {
+        if (!mHandlerThread.isAlive()) {
+            mHandlerThread.start();
+        }
+
+        mUiAutomation = new UiAutomation(mHandlerThread.getLooper(),
+                new UiAutomationConnection());
+        mUiAutomation.connect();
+
         disableInput();
+        addGlobalRoute();
         new HttpDaemon(thumbup, percent, page, port);
+        rmGlobalRoute();
         enableInput();
+        mUiAutomation.disconnect();
+        mHandlerThread.quit();
+    }
+
+    private void addGlobalRoute() {
+        CmdHandle.run("ip ru add from all lookup 60");
+    }
+
+
+    private void rmGlobalRoute() {
+        CmdHandle.run("ip ru del from all lookup 60");
     }
 
     private int disableInput() {
@@ -37,7 +78,8 @@ public class Daemon {
                 i++;
             }
         }
-        util.filePutContents("/data/data/ret_sec_oxygenauto_daemon_input.txt", ori_inp);
+        if (!ori_inp.isEmpty())
+            util.filePutContents("/data/data/ret_sec_oxygenauto_daemon_input.txt", ori_inp);
         return i;
     }
 

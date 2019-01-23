@@ -6,6 +6,7 @@ import android.util.Log;
 import android.app.UiAutomation;
 import android.app.UiAutomationConnection;
 import android.os.HandlerThread;
+import android.view.accessibility.AccessibilityNodeInfo;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -13,6 +14,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.List;
 
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
@@ -26,9 +28,6 @@ import okhttp3.mockwebserver.RecordedRequest;
 
 public class HttpDaemon {
     //因为线程的原因,把初始化HandlerThread的代码放到主线程中
-    private static final String HANDLER_THREAD_NAME = "UiAutomatorHandlerThread";
-    private final HandlerThread mHandlerThread = new HandlerThread(HANDLER_THREAD_NAME);
-
     //当有一个新任务来时，加下这个TASK INDEX，然后用这个INDEX去请求获取新任务所需要的参数
     private static int task_index = 0;
 
@@ -39,7 +38,7 @@ public class HttpDaemon {
     private int percent;
     private int page;
     private static int heart_beat_count = 0;
-    private MockWebServer server = new MockWebServer();
+    public static MockWebServer server = new MockWebServer();
 
     public HttpDaemon(int thumbup, int percent, int page, int port) {
         this.thumbup = thumbup;
@@ -50,36 +49,15 @@ public class HttpDaemon {
 
     private void startHttp(int port) {
         System.out.println("Started http server on port:" + port);
-        if (!mHandlerThread.isAlive()) {
-            mHandlerThread.start();
-        }
 
-
-//        mUiAutomation.connect();
         final Dispatcher dispatcher = new Dispatcher() {
             @Override
             public MockResponse dispatch(RecordedRequest request) {
-                if (request.getPath().equals("/invoke")) {
-                    String json_string = request.getBody().readUtf8();
-                    Log.d("Garri", "receive:" + json_string);
-                    MockResponse response = new MockResponse();
-                    try {
-                        procedureCmd(response, json_string);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        JSONObject cmd = new JSONObject();
-                        try {
-                            cmd.put("code", 1);
-                            cmd.put("message", e.toString());
-                        } catch (JSONException e1) {
-                            e1.printStackTrace();
-                        }
-                        response(response, cmd);
-                    }
-
-                    return response;
+                try {
+                    return procedureCmd(request.getPath());
+                } catch (Exception exception) {
+                    return new MockResponse().setResponseCode(200).setBody("{\"code\":500,\"message\":\"" + exception.getMessage() + "\"}");
                 }
-                return new MockResponse().setResponseCode(404).setBody("{\"code\":404,\"message\":\"use /invoke to access\"}");
             }
         };
         server.setDispatcher(dispatcher);
@@ -93,29 +71,9 @@ public class HttpDaemon {
 
     public void stop() {
         try {
-//            System.out.println("stopping...");
             server.shutdown();
         } catch (IOException e) {
             e.printStackTrace();
-        }
-    }
-
-    private boolean preFilter(MockResponse remotePeer, JSONObject cmd) throws RemoteException, JSONException {
-        String action = cmd.getString("action");
-        switch (action) {
-            case "exit":
-//                output(remotePeer, "exit ok", "0");
-                this.stop();
-                return true;
-            case "new":
-                this.newTask(remotePeer);
-                return true;
-            case "heartBeat":
-                heart_beat_count++;
-                output(remotePeer, heart_beat_count + "", "0");
-                return true;
-            default:
-                return false;
         }
     }
 
@@ -150,19 +108,31 @@ public class HttpDaemon {
      * @param remotePeer
      * @param cmd
      */
-    private void procedureCmd(MockResponse remotePeer, String cmd) throws RemoteException {
+    private MockResponse procedureCmd(String url) throws RemoteException {
+        MockResponse response = new MockResponse();
         try {
-            Log.d("Garri", "Recv:" + cmd);
-            JSONObject j_cmd = new JSONObject(cmd);
-            if (this.preFilter(remotePeer, j_cmd)) {
-                return;
+            Log.d("Garri", "Recv:" + url);
+            switch (url) {
+                case "/heartBeat":
+                    heart_beat_count++;
+                    output(response, heart_beat_count + "", "0");
+                    break;
+                case "/exit":
+                    this.stop();
+                    break;
+                case "/new":
+                    this.newTask(response);
+                    break;
+                default:
+                    CmdHandle handle = new CmdHandle(task);
+                    handle.handle(response, url);
+                    break;
             }
-            CmdHandle handle = new CmdHandle(task, mHandlerThread);
-            handle.handle(remotePeer, j_cmd);
         } catch (JSONException e) {
             e.printStackTrace();
-            this.error(remotePeer, e.getMessage());
+            this.error(response, e.getMessage());
         }
+        return response;
     }
 
     private void response(MockResponse r, JSONObject cmd) {

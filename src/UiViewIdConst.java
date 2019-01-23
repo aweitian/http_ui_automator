@@ -1,12 +1,24 @@
 package ret.sec.oxygenauto.daemon;
+//adb shell setprop persist.view.server.force 1
 
 public class UiViewIdConst {
+    //dumpsys activity top | grep ACTIVITY
+    public final static String APP_PACKAGE_NAME = "com.youxiang.soyoungapp";
 
     public final static String NEXT_STEP_VPN_START = "vpn_start";
     public final static String NEXT_STEP_VPN_CHECK = "vpn_check";
     public final static String NEXT_STEP_OXYGEN_START = "oxygen_start";
     public final static String NEXT_STEP_OXYGEN_STOP = "oxygen_stop";
     public final static String NEXT_STEP_VPN_STOP = "vpn_stop";
+
+    public final static String ID_APP_AD_CLOSE = "com.youxiang.soyoungapp:id/imgClose";
+
+
+    public final static String ACTIVITY_SEARCH_RESULT = "com.youxiang.soyoungapp/.main.home.search.SearchIndexActivity";
+    public final static String ACTIVITY_HOME = "com.youxiang.soyoungapp/.ui.MainActivity";
+    public final static String ACTIVITY_MY_LOGIN = "com.youxiang.soyoungapp/com.soyoung.login_module.login.LoginActivity";
+    public final static String ACTIVITY_MY_LOGINED = "com.youxiang.soyoungapp/.ui.MainActivity";
+    public final static String ACTIVITY_MY_LOGOUT = "com.youxiang.soyoungapp/com.soyoung.module_setting.SettingActivity";
 //    public final static String NEXT_STEP_SLEEP = "sleep";
 
 
@@ -64,26 +76,5 @@ public class UiViewIdConst {
     //BACK To HOME函数
         //一直按返回直到出现搜索按钮
         //如果顶部不是WEIXIN，启动微信
-
-    public final static String ID_VPN_ADD_NAME = "com.android.settings:id/name";
-    public final static String ID_VPN_ADD_USER = "com.android.settings:id/username";
-    public final static String ID_VPN_ADD_PASS = "com.android.settings:id/password";
-    public final static String ID_VPN_ADD_SERVER = "com.android.settings:id/server";
-    public final static String ID_VPN_ADD_BTN = "android:id/button2";
-
-
-    public final static String ACTIVITY_NAME_MAIN = ".ui.LauncherUI";                 //主页面
-    public final static String ACTIVITY_NAME_SEARCH = ".plugin.fts.ui.FTSMainUI";       //搜索页面
-    public final static String ACTIVITY_NAME_CONTACT = ".plugin.profile.ui.ContactInfoUI";       //添加联系人页面.plugin.profile.ui.ContactInfoUI
-    public final static String ACTIVITY_NAME_VERIFY = ".plugin.profile.ui.SayHiWithSnsPermissionUI";       //发送验证页面
-
-
-    public final static String PACKAGE_NAME_SETTTING = "com.android.settings";
-
-    public final static String NEXT_NEXT = "next";
-    public final static String NEXT_BACK = "back";
-    public final static String NEXT_STOP = "stop";
-    public final static String NEXT_DONE = "done";
-    public final static String NEXT_START = "start";
 
 }
