@@ -17,6 +17,7 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.service.autofill.IFillCallback;
 import android.util.Log;
 import android.view.accessibility.AccessibilityNodeInfo;
 
@@ -34,6 +35,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 
 import okhttp3.mockwebserver.MockResponse;
 
@@ -60,6 +62,9 @@ public class CmdHandle {
                     break;
                 nextApi();
                 break;
+            case "/new":
+                this.newApi();
+                break;
             default:
                 unknownCmd();
                 break;
@@ -77,7 +82,8 @@ public class CmdHandle {
 
     //### API ########################################################################
 
-    public void nextApi() throws RemoteException, JSONException {
+
+    public void nextApi() throws JSONException, RemoteException {
         mUiAutomation = Daemon.mUiAutomation;
         switch (task.current_step) {
             case UiViewIdConst.NEXT_STEP_VPN_START:
@@ -178,26 +184,72 @@ public class CmdHandle {
 
     //### API ########################################################################
 
-    private void next_step_vpn_start() throws RemoteException, JSONException {
-        run("mtpd rmnet_data0 pptp " + task.vpnServer + " 1723 name " + task.vpnUser + " password " + task.vpnPass + " linkname vpn refuse-eap nodefaultroute idle 1800 mtu 1400 mru 1400 nomppe unit 0 &");
-        task.current_step = UiViewIdConst.NEXT_STEP_VPN_CHECK;
-        next("已启动VPN连接：" + task.vpnServer, task.app_start_time);
+    private void newApi() throws JSONException {
+        String sn = CmdHandle.run("getprop ro.serialno");
+        String url = UiViewIdConst.TASK_FEED_URL + "?sn=" + sn + "&i=" + HttpDaemon.task_index;
+        String r = util.request_get(url);
+        JSONObject j = new JSONObject(r);
+        if (j.getInt("code") != 0) {
+            task = null;
+            error(j.getString("message"));
+        } else {
+            JSONObject data = j.getJSONObject("data");
+            Task task = new Task();
+            task.current_step = UiViewIdConst.NEXT_STEP_OXYGEN_START;
+            task.vpnServer = data.getString("vpn_host");
+            task.vpnUser = data.getString("vpn_user");
+            task.vpnPass = data.getString("vpn_pass");
+            task.oxygenUser = data.getString("oxygen_user");
+            task.oxygenPass = data.getString("oxygen_pass");
+            task.app_start_time = data.getInt("oxygen_start_time");
+            task.vpn_connect_time = data.getInt("vpn_connect_time");
+            task.keyword = data.getString("keyword");
+            task.page = HttpDaemon.page;
+            task.percent = HttpDaemon.percent;
+            task.thumbup = HttpDaemon.thumbup;
+            task.page_remain = task.page;
+            task.thumbup_remain = task.thumbup;
+            task.ip = data.getString("ip");
+            HttpDaemon.task = task;
+            response("ok,ip:" + task.ip + ",host:" + task.vpnServer + ",user:" + task.oxygenUser, 0);
+            HttpDaemon.task_index++;
+        }
     }
 
-    private void next_step_vpn_check() throws RemoteException, JSONException {
+
+    private void next_step_vpn_start() throws JSONException {
+        int s = isVpnConnected();
+        switch (s) {
+            case 0:
+                next("vpn is already connected.", 1);
+                break;
+            case 1:
+                next("vpn is connecting.", 1);
+                break;
+            default:
+                String cmd = "mtpd rmnet_data0 pptp " + task.vpnServer + " 1723 name " + task.vpnUser + " password " + task.vpnPass + " linkname vpn refuse-eap nodefaultroute idle 1800 mtu 1400 mru 1400 nomppe unit 0 &";
+                System.out.println(cmd);
+                run(cmd);
+                next("cmd is run", 1);
+                break;
+        }
+        task.current_step = UiViewIdConst.NEXT_STEP_VPN_CHECK;
+    }
+
+    private void next_step_vpn_check() throws JSONException {
         switch (isVpnConnected()) {
             case 0:
                 run("ip ro add default dev ppp0 table 0x3c");
                 task.current_step = UiViewIdConst.NEXT_STEP_OXYGEN_START;
                 next(task.current_step, 1);
-
                 break;
             case 1:
+                //这个地方不能直接结束，因为PPPD或者MTPD进程还在运行，要结束它们
                 task.current_step = UiViewIdConst.NEXT_STEP_VPN_STOP;
-                next("VPN正在连接，网速太慢，换个VPN", task.app_start_time);
+                next("VPN is connecting,stop and choose another one", task.app_start_time);
                 break;
             default:
-                next("VPN连接不上，重新开启一个任务", -1);
+                next("vpn is lost connection.renew a task", -1);
                 break;
         }
     }
@@ -207,52 +259,443 @@ public class CmdHandle {
      * 1 正在连接
      * 2 连接失败
      *
-     * @return
-     * @throws RemoteException
-     * @throws JSONException
+     * @return int
      */
-    private int isVpnConnected() throws RemoteException, JSONException {
+    private int isVpnConnected() {
         String r = run("ps | grep mtpd");
         String q = run("ifconfig | grep ppp0");
         if (!r.isEmpty() && !q.isEmpty()) {
             return 0;
         }
-        if (q.isEmpty()) {
+        if (!r.isEmpty()) {
             return 1;
         }
         return 2;
     }
 
-    private void next_step_vpn_stop() {
+    private void next_step_vpn_stop() throws JSONException {
         run("killall -15 mtpd");
+        next("VPN已断开", -1);
         //run("killall -9 mtpd pppd");
     }
 
-    private void next_step_oxygen_start(UiAutomation uiAutomation) throws JSONException {
+    private void next_step_oxygen_start(UiAutomation uiAutomation) throws JSONException, RemoteException {
         AccessibilityNodeInfo node, root = uiAutomation.getRootInActiveWindow();
-        if (root.getPackageName().equals(UiViewIdConst.APP_PACKAGE_NAME)) {
-            //有广告，关广告
-            node = getById(root, UiViewIdConst.ID_APP_AD_CLOSE);
-            if (node != null) {
-                performClick(node);
-                next("有广告，先关闭广告", 2);
-                return;
-            }
-            //是否在搜索页面
-            if (getTopActivity().equals(UiViewIdConst.ACTIVITY_SEARCH_RESULT)) {
+        AccessibilityNodeInfo n1, n2;
 
-            } else {
-                //登陆，搜索
+        if (task.page_remain <= 0) {
+            task.current_step = UiViewIdConst.NEXT_STEP_OXYGEN_STOP;
+            next("准备退出", 2);
+            return;
+        }
 
-            }
-        } else {
+        if (root == null) {
+            uiAutomation.disconnect();
+            uiAutomation.connect();
+            next("uiAutomation出错", 2);
+            return;
+        }
+
+        if (!root.getPackageName().equals(UiViewIdConst.APP_PACKAGE_NAME)) {
             next("App没有启动，先启动", task.app_start_time);
             startOxygen();
+            return;
+        }
+
+        String ta = getTopActivity();
+        //有广告，关广告
+        node = getById(root, UiViewIdConst.ID_APP_AD_CLOSE);
+        if (node != null) {
+            performClick(node);
+            next("发现广告，关闭广告", 2);
+            return;
+        }
+        //是否在搜索页面
+        if (ta.equals(UiViewIdConst.ACTIVITY_DIARY_CONTENT)) {
+            //日记内容页
+            task.indexOfPage++;
+            //根据实际情况，这个地方要重连下UIAUTOMATOR
+            run("input keyevent 4");
+            next("日记内容页，返回", 2);
+            uiAutomation.disconnect();
+            uiAutomation.connect();
+            return;
+        } else if (ta.equals(UiViewIdConst.ACTIVITY_DIARY_MAIN)) {
+            //日记页
+            node = getByText(root, UiViewIdConst.TEXT_DIARY_TOP_TITLE);
+            if (node != null) {
+                if (node.getViewIdResourceName().equals(UiViewIdConst.ID_DIARY_TOP_TITLE)) {
+                    //next("在日记页，准备操作，还没有写。。。", 2);
+                    node = getById(root, UiViewIdConst.ID_DIARY_CONTENT_LIST);
+                    if (node == null) {
+                        next("在日记页没有找到列表", 2);
+                        return;
+                    }
+
+                    //comment
+                    List<AccessibilityNodeInfo> list1 = root.findAccessibilityNodeInfosByViewId(UiViewIdConst.ID_DIARY_COUNT);
+
+                    //like
+                    List<AccessibilityNodeInfo> list2 = root.findAccessibilityNodeInfosByViewId(UiViewIdConst.ID_DIARY_LIKE);
+                    if (list1.size() != list2.size()) {
+                        next("评论和点赞按钮个数不相等", 2);
+                        return;
+                    }
+
+                    if (list2.size() == 0) {
+                        task.indexOfPage = 0;
+                        //向下翻页
+                        node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
+                        next("在日记页,当前页没有找到点赞，向下翻页", 2);
+                        return;
+                    }
+
+                    //删除不可见元素
+                    if (!list2.get(0).isVisibleToUser()) {
+                        list1.remove(0);
+                        list2.remove(0);
+                    }
+                    int len = list2.size();
+                    if (len > 0) {
+                        if (!list2.get(len - 1).isVisibleToUser()) {
+                            list1.remove(len - 1);
+                            list2.remove(len - 1);
+                        }
+                    }
+
+
+                    if (list2.size() <= task.indexOfPage) {
+                        task.page_remain--;
+                        //向下翻页
+                        node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
+                        next("在日记页,当前页已点完" + (task.indexOfPage) + "/" + (list2.size()) + "，向下翻页(" + (task.page - task.page_remain) + "/" + task.page + ")", 2);
+                        task.indexOfPage = 0;
+                        return;
+                    }
+
+                    //随机一个数和percent比较，小，点,大,task.indexOfPage++
+                    Random random = new Random();
+                    int r = random.nextInt(100);
+                    if (r < task.percent) {
+                        //点赞
+                        next("在日记页,点赞,并进入日记内容页" + (task.indexOfPage) + "/" + (list2.size()) + ",当前页面进度(" + (task.page - task.page_remain) + "/" + task.page + ")", 2);
+                        if (task.thumbup_remain > 0) {
+                            performClick(list2.get(task.indexOfPage));
+                            sleep(3);
+                        }
+
+                        //进入日记内容页
+                        performClick(list1.get(task.indexOfPage));
+
+                        return;
+                    } else {
+                        task.indexOfPage++;
+                        next("在日记页,随机值大于percent，跳过这条日记" + (task.indexOfPage) + "/" + (list2.size()) + ",当前页面进度(" + (task.page - task.page_remain) + "/" + task.page + ")", 2);
+                        return;
+                    }
+                } else {
+                    next("比较顶部标题，匹配失败,找到的标题是:" + node.getViewIdResourceName(), 2);
+                    return;
+                }
+            }
+            //不在日记页，返回
+            run("input keyevent 4");
+            next("不在日记页，返回", 2);
+            return;
+        } else if (ta.equals(UiViewIdConst.ACTIVITY_HOSPITAL_MAIN)) {
+            //医院首页
+            node = getById(root, UiViewIdConst.ID_HOSPITAL_MAIN_LIST);
+            if (node == null) {
+                next("在医院首页没有找到LIST，没法向下翻页", 2);
+                return;
+            }
+            int c = 5;//向上翻5页找677案例,正常情况下在第一页
+            while (c > 0) {
+                n1 = getById(root, UiViewIdConst.ID_DIARY_BTN);
+                if (n1 != null) {
+                    performClick(n1);
+                    task.indexOfPage = 0;
+                    next("找到精华日记，点击进入日记页", 2);
+                    return;
+                }
+                node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
+                sleep(3);
+                c--;
+            }
+            next("向上翻了5页,没有找到精华日记", 2);
+            return;
+        } else {
+            if (task.logined) {
+                if (ta.equals(UiViewIdConst.ACTIVITY_MAIN_SEARCH)) {
+                    node = getById(root, UiViewIdConst.ID_SEARCH_INPUT_IN_SEARCH);
+                    if (node == null) {
+                        next("在搜索页面没有找到输入框", 2);
+                        return;
+                    }
+                    pasteText(node, task.keyword);
+                    sleep(3);
+                    node = getByText(root, UiViewIdConst.TEXT_BTN_RESULT);
+                    if (node != null) {
+                        performClick(node, true);
+                        next("查找到结果点击", 2);
+                        return;
+                    } else {
+                        next("没有找到 上海南浦妇科医院 （私密整形养护中心）", 2);
+                        return;
+                    }
+                } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
+                    node = getById(root, UiViewIdConst.ID_SEARCH_INPUT_IN_MAIN);
+                    if (node == null) {
+                        node = getById(root, UiViewIdConst.ID_HOME_BTN);
+                        if (node == null) {
+                            next("在首页找不到底部首页按钮", 2);
+                            return;
+                        }
+                        performClick(node, true);
+                        next("登陆成功，点击底部首页按钮", 2);
+                        return;
+                    }
+                    //pasteText(node,task.keyword);
+//                        node = getById(root,UiViewIdConst.ID_HOME_BTN);
+                    performClick(node, true);
+                    next("点击顶部搜索输入框", 2);
+                    return;
+                } else {
+                    next("未知窗口(" + ta + ")", 2);
+                    return;
+                }
+            }
+
+            node = getById(root, UiViewIdConst.ID_USER_LEVEL);
+            if (node != null) {
+                task.logined = true;
+                next("已登陆，准备搜索", 2);
+                return;
+            }
+
+            //没有登陆
+            switch (task.oxygen_login_step) {
+                case "init":
+                    if (ta.equals(UiViewIdConst.ACTIVITY_MY_LOGIN)) {
+                        task.oxygen_login_step = "my+";
+                        next("准备使用用户名和密码登陆", 2);
+                        return;
+                    } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
+                        node = getById(root, UiViewIdConst.ID_MY_BTN);
+                        if (node == null) {
+                            next("在首页找不到 我的 按钮", 10);
+                            return;
+                        }
+                        performClick(node);
+                        task.oxygen_login_step = "my-";
+                        next("点击【我的】按钮", 2);
+                        return;
+                    } else {
+                        next("未知窗口(ACTIVITY:" + ta + ")", 2);
+                        return;
+                    }
+                case "my-":
+                    if (ta.equals(UiViewIdConst.ACTIVITY_MY_LOGIN)) {
+                        task.oxygen_login_step = "my+";
+                        next("prepare to use acc pwd to login", 2);
+                        return;
+                    } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
+                        task.oxygen_login_step = "init";
+                        next("perform my button failed,try again.", 2);
+                        return;
+                    } else {
+                        next("未知窗口(ACTIVITY:" + ta + ")", 2);
+                        return;
+                    }
+                case "my+":
+                    if (ta.equals(UiViewIdConst.ACTIVITY_MY_LOGIN)) {
+                        task.oxygen_login_step = "my+";
+
+                        node = getById(root, UiViewIdConst.ID_LOGIN_VC);
+                        n1 = getById(root, UiViewIdConst.ID_LOGIN_USER);
+                        n2 = getById(root, UiViewIdConst.ID_LOGIN_PASS);
+                        if (node != null && node.isVisibleToUser()) {
+                            node = getByText(root, "账号密码登录");
+                            if (node == null) {
+                                next("在登陆页面找不到：账号密码登录", 10);
+                                return;
+                            }
+                            task.oxygen_login_step = "login-";
+                            performClick(node);
+                            next("prepare to use acc pwd to login", 2);
+                            return;
+                        } else if (n1 != null && n2 != null) {
+                            task.oxygen_login_step = "login+";
+                            next("prepare to fill acc and pwd", 2);
+                            return;
+                        }
+                        return;
+                    } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
+                        task.oxygen_login_step = "init";
+                        next("perform my button failed,try again.", 2);
+                        return;
+                    } else {
+                        next("未知窗口(ACTIVITY:" + ta + ")", 2);
+                        return;
+                    }
+                case "login-":
+                    if (ta.equals(UiViewIdConst.ACTIVITY_MY_LOGIN)) {
+                        n1 = getById(root, UiViewIdConst.ID_LOGIN_USER);
+                        n2 = getById(root, UiViewIdConst.ID_LOGIN_PASS);
+                        if (n1 != null && n2 != null) {
+                            task.oxygen_login_step = "login+";
+                            next("prepare to fill acc and pwd", 2);
+                            return;
+                        } else {
+                            task.oxygen_login_step = "my+";
+                            next("entry user pwd failed.", 2);
+                            return;
+                        }
+                    } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
+                        task.oxygen_login_step = "init";
+                        next("perform my button failed,try again.", 2);
+                        return;
+                    } else {
+                        next("未知窗口(ACTIVITY:" + ta + ")", 2);
+                        return;
+                    }
+                case "login+":
+                    if (ta.equals(UiViewIdConst.ACTIVITY_MY_LOGIN)) {
+                        n1 = getById(root, UiViewIdConst.ID_LOGIN_USER);
+                        n2 = getById(root, UiViewIdConst.ID_LOGIN_PASS);
+                        if (n1 != null && n2 != null) {
+                            pasteText(n1, task.oxygenUser);
+                            sleep(1);
+                            pasteText(n2, task.oxygenPass);
+                            sleep(1);
+                            node = getById(root, UiViewIdConst.ID_LOGIN_SUBMIT_BTN);
+                            if (node == null) {
+                                next("在登陆页面找不到：登陆提交按钮", 10);
+                                return;
+                            }
+                            performClick(node);
+                            next("prepare to fill acc and pwd", 2);
+                            return;
+                        } else {
+                            task.oxygen_login_step = "my+";
+                            next("entry user pwd failed.", 2);
+                            return;
+                        }
+                    } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
+                        task.oxygen_login_step = "init";
+                        next("perform my button failed,try again.", 2);
+                        return;
+                    } else {
+                        next("未知窗口(ACTIVITY:" + ta + ")", 2);
+                        return;
+                    }
+            }
+
+            next("未知错误:" + ta + ")", 2);
+        }
+
+    }
+
+    private void sleep(int sec) {
+        try {
+            Thread.sleep(sec * 1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
-    private void next_step_oxygen_stop(UiAutomation uiAutomation) {
+    private void next_step_oxygen_stop(UiAutomation uiAutomation) throws JSONException {
+        String ta = getTopActivity();
+        AccessibilityNodeInfo node, root;
+        if (ta.equals(UiViewIdConst.ACTIVITY_DIARY_CONTENT)) {
+            //根据实际情况，这个地方要重连下UIAUTOMATOR
+            run("input keyevent 4");
+            next("准备退出,日记内容页，返回", 2);
+            uiAutomation.disconnect();
+            uiAutomation.connect();
+            return;
+        } else if (ta.equals(UiViewIdConst.ACTIVITY_DIARY_MAIN)) {
+            run("input keyevent 4");
+            next("准备退出,日记首页，返回", 2);
+            uiAutomation.disconnect();
+            uiAutomation.connect();
+            return;
+        } else if (ta.equals(UiViewIdConst.ACTIVITY_HOSPITAL_MAIN)) {
+            //医院首页
+            run("input keyevent 4");
+            next("准备退出,医院首页，返回", 2);
+            uiAutomation.disconnect();
+            uiAutomation.connect();
+            return;
+        } else if (ta.equals(UiViewIdConst.ACTIVITY_MAIN_SEARCH)) {
+            //搜索页面
+            run("input keyevent 4");
+            next("准备退出,搜索页面，返回", 2);
+            uiAutomation.disconnect();
+            uiAutomation.connect();
+            return;
+        } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
+            //首页页面
+            root = uiAutomation.getRootInActiveWindow();
+            if (root == null) {
+                uiAutomation.disconnect();
+                uiAutomation.connect();
+                next("uiAutomation出错", 2);
+                return;
+            }
+            //是不是在我的页面
+            node = getById(root, UiViewIdConst.ID_LOGOUT_SETTING);
+            if (node == null) {
+                node = getById(root, UiViewIdConst.ID_MY_BTN);
+                if (node == null) {
+                    next("在HOME页面下找不到 我的 按钮", 2);
+                    return;
+                }
+                performClick(node, true);
+                next("点击进入我的页面", 2);
+                return;
+            }
+            performClick(node);
+            next("点击进入我的页面", 2);
+            return;
+        } else if (ta.equals(UiViewIdConst.ACTIVITY_SETTING)) {
+            root = uiAutomation.getRootInActiveWindow();
+            if (root == null) {
+                uiAutomation.disconnect();
+                uiAutomation.connect();
+                next("uiAutomation出错", 2);
+                return;
+            }
 
+            node = getByText(root, UiViewIdConst.TEXT_LOGOUT_DIALOG_TEXT);
+            if (node != null) {
+                if (node.getViewIdResourceName().equals(UiViewIdConst.ID_LOGOUT_DIALOG_TEXT)) {
+                    node = getById(root, UiViewIdConst.ID_LOGOUT_DIALOG_OK);
+                    if (node == null) {
+                        next("在退出确认对话框上找不到确定按钮", 2);
+                        return;
+                    }
+                    performClick(node);
+                    next("确认退出", 2);
+                    return;
+                }
+            }
+
+            node = getById(root, UiViewIdConst.ID_LOGOUT_EXIT);
+            if (node == null) {
+                next("在设置页面下找不到 退出 按钮", 2);
+                return;
+            }
+            performClick(node);
+            next("点击退出", 2);
+            return;
+        } else if (ta.equals(UiViewIdConst.ACTIVITY_MY_LOGIN)) {
+            task.current_step = UiViewIdConst.NEXT_STEP_VPN_STOP;
+            next("退出完成，准备断开VPN", 2);
+            return;
+        } else {
+            next("未知错误:" + ta + ")", 2);
+        }
     }
 
     private AccessibilityNodeInfo getById(AccessibilityNodeInfo root, String id) {
@@ -306,7 +749,9 @@ public class CmdHandle {
                 int left, top;
                 left = rect.left + 2;
                 top = rect.top + 2;
-                run("input tap " + left + " " + top);
+                String cmd = "input tap " + left + " " + top;
+//                System.out.println(cmd);
+                run(cmd);
             } else {
                 node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
             }

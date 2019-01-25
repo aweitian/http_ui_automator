@@ -29,15 +29,15 @@ import okhttp3.mockwebserver.RecordedRequest;
 public class HttpDaemon {
     //因为线程的原因,把初始化HandlerThread的代码放到主线程中
     //当有一个新任务来时，加下这个TASK INDEX，然后用这个INDEX去请求获取新任务所需要的参数
-    private static int task_index = 0;
+    public static int task_index = 0;
 
     //下面6个有新任务来时初始化
-    private static Task task;
+    public static Task task;
 
-    private int thumbup;
-    private int percent;
-    private int page;
-    private static int heart_beat_count = 0;
+    public static int thumbup;
+    public static int percent;
+    public static int page;
+    public static int heart_beat_count = 0;
     public static MockWebServer server = new MockWebServer();
 
     public HttpDaemon(int thumbup, int percent, int page, int port) {
@@ -77,36 +77,13 @@ public class HttpDaemon {
         }
     }
 
-    private void newTask(MockResponse remotePeer) throws JSONException {
-        String sn = CmdHandle.run("getprop ro.serialno");
-        String url = "https://xcx.sh9l.com/oxygen_auto_verify/getTaskInfo.php?sn=" + sn + "&i=" + task_index;
-        String r = util.request_get(url);
-        JSONObject j = new JSONObject(r);
-        if (j.getInt("code") != 0) {
-            task = null;
-            error(remotePeer, j.getString("message"));
-        } else {
-            JSONObject data = j.getJSONObject("data");
-            task = new Task();
-            task.current_step = UiViewIdConst.NEXT_STEP_VPN_START;
-            task.vpnServer = data.getString("vpn_host");
-            task.vpnUser = data.getString("vpn_user");
-            task.vpnPass = data.getString("vpn_pass");
-            task.oxygenUser = data.getString("oxygen_user");
-            task.oxygenPass = data.getString("oxygen_pass");
-            task.app_start_time = data.getInt("oxygen_start_time");
-            task.vpn_connect_time = data.getInt("vpn_connect_time");
 
-            output(remotePeer, "ok", "0");
-        }
-    }
 
     /**
      * action
      * data
      *
-     * @param remotePeer
-     * @param cmd
+     * @param url
      */
     private MockResponse procedureCmd(String url) throws RemoteException {
         MockResponse response = new MockResponse();
@@ -120,9 +97,7 @@ public class HttpDaemon {
                 case "/exit":
                     this.stop();
                     break;
-                case "/new":
-                    this.newTask(response);
-                    break;
+
                 default:
                     CmdHandle handle = new CmdHandle(task);
                     handle.handle(response, url);

@@ -40,7 +40,6 @@ public class Daemon {
     }
 
 
-
     private Daemon(int thumbup, int percent, int page, int port) {
         if (!mHandlerThread.isAlive()) {
             mHandlerThread.start();
@@ -49,13 +48,17 @@ public class Daemon {
         mUiAutomation = new UiAutomation(mHandlerThread.getLooper(),
                 new UiAutomationConnection());
         mUiAutomation.connect();
-
+        System.out.println("disableInput();");
         disableInput();
+        System.out.println("addGlobalRoute();");
         addGlobalRoute();
         new HttpDaemon(thumbup, percent, page, port);
+        System.out.println("rmGlobalRoute();");
         rmGlobalRoute();
+        System.out.println("enableInput();");
         enableInput();
         mUiAutomation.disconnect();
+        System.out.println("mHandlerThread.quit();");
         mHandlerThread.quit();
     }
 
@@ -63,9 +66,13 @@ public class Daemon {
         CmdHandle.run("ip ru add from all lookup 60");
     }
 
-
     private void rmGlobalRoute() {
-        CmdHandle.run("ip ru del from all lookup 60");
+        String cmd = "ip ru show | grep \"from all lookup 60\"";
+        String r = CmdHandle.run(cmd);
+        while (!r.isEmpty()) {
+            CmdHandle.run("ip ru del from all lookup 60");
+            r = CmdHandle.run(cmd);
+        }
     }
 
     private int disableInput() {

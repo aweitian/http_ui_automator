@@ -2,7 +2,10 @@ package ret.sec.oxygenauto.daemon;
 //adb shell setprop persist.view.server.force 1
 
 public class UiViewIdConst {
-    //dumpsys activity top | grep ACTIVITY
+    //接受sn 和  i 参数（GET），返回JSON
+    public final static String TASK_FEED_URL = "https://xcx.sh9l.com/oxygen_auto_verify/getTaskInfo.php";
+    //   dumpsys activity top | grep ACTIVITY
+    //   curl http://127.0.0.1:3820/next
     public final static String APP_PACKAGE_NAME = "com.youxiang.soyoungapp";
 
     public final static String NEXT_STEP_VPN_START = "vpn_start";
@@ -12,14 +15,44 @@ public class UiViewIdConst {
     public final static String NEXT_STEP_VPN_STOP = "vpn_stop";
 
     public final static String ID_APP_AD_CLOSE = "com.youxiang.soyoungapp:id/imgClose";
+    public final static String ID_LOGIN_USER = "com.youxiang.soyoungapp:id/user_name";
+    public final static String ID_LOGIN_PASS = "com.youxiang.soyoungapp:id/pwd";
+    public final static String ID_LOGIN_VC = "com.youxiang.soyoungapp:id/code_num";
+    public final static String ID_LOGIN_SUBMIT_BTN = "com.youxiang.soyoungapp:id/bt_login";
+    public final static String ID_MY_BTN = "com.youxiang.soyoungapp:id/main_my_center";
+    public final static String ID_HOME_BTN = "com.youxiang.soyoungapp:id/main_home";
+    public final static String ID_DIARY_BTN = "com.youxiang.soyoungapp:id/hospital_detail_info_sample";//677案例
+    public final static String ID_DIARY_TOP_TITLE = "com.youxiang.soyoungapp:id/top_center_title";//需要结合TEXT来确定唯一性
+    public final static String ID_HOSPITAL_MAIN_LIST = "com.youxiang.soyoungapp:id/recycler_view";//需要结合TEXT来确定唯一性
+
+    //用户级别，用于作为用户是否登陆的标志
+    public final static String ID_USER_LEVEL = "com.youxiang.soyoungapp:id/user_level";
+    public final static String ID_SEARCH_INPUT_IN_MAIN = "com.youxiang.soyoungapp:id/title_search";
+    public final static String ID_SEARCH_INPUT_IN_SEARCH = "com.youxiang.soyoungapp:id/edSearch";
+
+    public final static String ID_DIARY_COUNT = "com.youxiang.soyoungapp:id/view_cnt";
+    public final static String ID_DIARY_LIKE = "com.youxiang.soyoungapp:id/like_cnt";
+    public final static String ID_DIARY_CONTENT_LIST = "com.youxiang.soyoungapp:id/list";
+    public final static String ID_LOGOUT_SETTING = "com.youxiang.soyoungapp:id/setting";
+    public final static String ID_LOGOUT_EXIT = "com.youxiang.soyoungapp:id/exit";
+    public final static String ID_LOGOUT_DIALOG_TEXT = "android:id/message";
+    public final static String ID_LOGOUT_DIALOG_OK = "android:id/button1";
+
+    public final static String TEXT_BTN_RESULT = "上海南浦妇科医院 （私密整形养护中心）";
+    public final static String TEXT_DIARY_TOP_TITLE = "医院的案例";
+    public final static String TEXT_LOGOUT_DIALOG_TEXT= "确定要退出当前账号？";
 
 
-    public final static String ACTIVITY_SEARCH_RESULT = "com.youxiang.soyoungapp/.main.home.search.SearchIndexActivity";
     public final static String ACTIVITY_HOME = "com.youxiang.soyoungapp/.ui.MainActivity";
+    //com.youxiang.soyoungapp/com.soyoung.login_module.login.LoginActivity
     public final static String ACTIVITY_MY_LOGIN = "com.youxiang.soyoungapp/com.soyoung.login_module.login.LoginActivity";
-    public final static String ACTIVITY_MY_LOGINED = "com.youxiang.soyoungapp/.ui.MainActivity";
-    public final static String ACTIVITY_MY_LOGOUT = "com.youxiang.soyoungapp/com.soyoung.module_setting.SettingActivity";
-//    public final static String NEXT_STEP_SLEEP = "sleep";
+    public final static String ACTIVITY_MAIN_SEARCH = "com.youxiang.soyoungapp/.main.home.search.SearchMainActivity";
+    public final static String ACTIVITY_HOSPITAL_MAIN = "com.youxiang.soyoungapp/.main.mine.hospital.view.HospitalDetailActivity";
+    public final static String ACTIVITY_DIARY_MAIN = "com.youxiang.soyoungapp/.main.mine.doctor.CommonListActivity";
+    public final static String ACTIVITY_DIARY_CONTENT = "com.youxiang.soyoungapp/.ui.main.DiaryModelActivity";
+    public final static String ACTIVITY_SETTING = "com.youxiang.soyoungapp/com.soyoung.module_setting.SettingActivity";
+
+
 
 
 
