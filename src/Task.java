@@ -25,4 +25,5 @@ public class Task {
     public int page_remain;
     public int thumbup_remain;
     public int indexOfPage = 0;
+    public int indexOfDiary = 0;        //一个大日记下第几篇小日记
 }

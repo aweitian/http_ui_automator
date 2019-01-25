@@ -195,7 +195,7 @@ public class CmdHandle {
         } else {
             JSONObject data = j.getJSONObject("data");
             Task task = new Task();
-            task.current_step = UiViewIdConst.NEXT_STEP_OXYGEN_START;
+            task.current_step = UiViewIdConst.NEXT_STEP_VPN_START;
             task.vpnServer = data.getString("vpn_host");
             task.vpnUser = data.getString("vpn_user");
             task.vpnPass = data.getString("vpn_pass");
@@ -482,11 +482,16 @@ public class CmdHandle {
                         return;
                     } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
                         node = getById(root, UiViewIdConst.ID_MY_BTN);
+                        Rect rect = node.getBoundsInScreen();
+                        int left, top;
+                        left = rect.left + 2;
+                        top = rect.top + 2;
+                        System.out.println("my button left" + left + ",top:" + top);
                         if (node == null) {
                             next("在首页找不到 我的 按钮", 10);
                             return;
                         }
-                        performClick(node);
+                        performClick(node, true);
                         task.oxygen_login_step = "my-";
                         next("点击【我的】按钮", 2);
                         return;
@@ -497,11 +502,11 @@ public class CmdHandle {
                 case "my-":
                     if (ta.equals(UiViewIdConst.ACTIVITY_MY_LOGIN)) {
                         task.oxygen_login_step = "my+";
-                        next("prepare to use acc pwd to login", 2);
+                        next("准备使用用户名和密码登陆", 2);
                         return;
                     } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
                         task.oxygen_login_step = "init";
-                        next("perform my button failed,try again.", 2);
+                        next("找不到我的页面按钮", 2);
                         return;
                     } else {
                         next("未知窗口(ACTIVITY:" + ta + ")", 2);
@@ -522,17 +527,17 @@ public class CmdHandle {
                             }
                             task.oxygen_login_step = "login-";
                             performClick(node);
-                            next("prepare to use acc pwd to login", 2);
+                            next("准备使用用户名和密码登陆", 2);
                             return;
                         } else if (n1 != null && n2 != null) {
                             task.oxygen_login_step = "login+";
-                            next("prepare to fill acc and pwd", 2);
+                            next("找不到用户和密码的输入处", 2);
                             return;
                         }
                         return;
                     } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
                         task.oxygen_login_step = "init";
-                        next("perform my button failed,try again.", 2);
+                        next("点击输入我的页面", 2);
                         return;
                     } else {
                         next("未知窗口(ACTIVITY:" + ta + ")", 2);
@@ -544,16 +549,16 @@ public class CmdHandle {
                         n2 = getById(root, UiViewIdConst.ID_LOGIN_PASS);
                         if (n1 != null && n2 != null) {
                             task.oxygen_login_step = "login+";
-                            next("prepare to fill acc and pwd", 2);
+                            next("准备输入用户名和密码", 2);
                             return;
                         } else {
                             task.oxygen_login_step = "my+";
-                            next("entry user pwd failed.", 2);
+                            next("没用找到用户名和密码的输入框", 2);
                             return;
                         }
                     } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
                         task.oxygen_login_step = "init";
-                        next("perform my button failed,try again.", 2);
+                        next("没有进入到我的页面，准备重试", 2);
                         return;
                     } else {
                         next("未知窗口(ACTIVITY:" + ta + ")", 2);
@@ -574,16 +579,16 @@ public class CmdHandle {
                                 return;
                             }
                             performClick(node);
-                            next("prepare to fill acc and pwd", 2);
+                            next("准备输入用户名和密码", 2);
                             return;
                         } else {
                             task.oxygen_login_step = "my+";
-                            next("entry user pwd failed.", 2);
+                            next("没有找到用户名和密码输入框", 2);
                             return;
                         }
                     } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
                         task.oxygen_login_step = "init";
-                        next("perform my button failed,try again.", 2);
+                        next("没有进入到我的页面，重试", 2);
                         return;
                     } else {
                         next("未知窗口(ACTIVITY:" + ta + ")", 2);
@@ -700,15 +705,22 @@ public class CmdHandle {
 
     private AccessibilityNodeInfo getById(AccessibilityNodeInfo root, String id) {
         List<AccessibilityNodeInfo> l = root.findAccessibilityNodeInfosByViewId(id);
-        if (l.size() > 0)
-            return l.get(0);
+        for (int i = 0; i < l.size(); i++) {
+            if (l.get(i).isVisibleToUser()) {
+                return l.get(i);
+            }
+        }
+
         return null;
     }
 
     private AccessibilityNodeInfo getByText(AccessibilityNodeInfo root, String text) {
         List<AccessibilityNodeInfo> l = root.findAccessibilityNodeInfosByText(text);
-        if (l.size() > 0)
-            return l.get(0);
+        for (int i = 0; i < l.size(); i++) {
+            if (l.get(i).isVisibleToUser()) {
+                return l.get(i);
+            }
+        }
         return null;
     }
 
@@ -750,7 +762,7 @@ public class CmdHandle {
                 left = rect.left + 2;
                 top = rect.top + 2;
                 String cmd = "input tap " + left + " " + top;
-//                System.out.println(cmd);
+                System.out.println(cmd);
                 run(cmd);
             } else {
                 node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
