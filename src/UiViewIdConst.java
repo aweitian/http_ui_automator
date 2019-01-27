@@ -6,6 +6,7 @@ public class UiViewIdConst {
     public final static String TASK_FEED_URL = "https://xcx.sh9l.com/oxygen_auto_verify/getTaskInfo.php";
     //   dumpsys activity top | grep ACTIVITY
     //   curl http://127.0.0.1:3820/next
+    //   getprop ro.serialno
     public final static String APP_PACKAGE_NAME = "com.youxiang.soyoungapp";
 
     public final static String NEXT_STEP_VPN_START = "vpn_start";
@@ -37,10 +38,16 @@ public class UiViewIdConst {
     public final static String ID_LOGOUT_EXIT = "com.youxiang.soyoungapp:id/exit";
     public final static String ID_LOGOUT_DIALOG_TEXT = "android:id/message";
     public final static String ID_LOGOUT_DIALOG_OK = "android:id/button1";
+    public final static String ID_DIARY_DETAIL_ID = "com.youxiang.soyoungapp:id/diary_num";//日记变美过程篇数，2018-07-10创建  共9篇日记
+    public final static String ID_DIARY_DETAIL_CONTENT = "com.youxiang.soyoungapp:id/content";//点击这个增加浏览量
+    public final static String ID_DIARY_DETAIL_LIST = "com.youxiang.soyoungapp:id/recyclerView";//点击这个增加浏览量
+    public final static String ID_DISCOVER = "com.youxiang.soyoungapp:id/main_discover";//点击这个增加浏览量
+
 
     public final static String TEXT_BTN_RESULT = "上海南浦妇科医院 （私密整形养护中心）";
     public final static String TEXT_DIARY_TOP_TITLE = "医院的案例";
-    public final static String TEXT_LOGOUT_DIALOG_TEXT= "确定要退出当前账号？";
+    public final static String TEXT_LOGOUT_DIALOG_TEXT = "确定要退出当前账号？";
+    public final static String TEXT_DIARY_DETAIL_FIRST = "第1篇日记";
 
 
     public final static String ACTIVITY_HOME = "com.youxiang.soyoungapp/.ui.MainActivity";
@@ -51,16 +58,10 @@ public class UiViewIdConst {
     public final static String ACTIVITY_DIARY_MAIN = "com.youxiang.soyoungapp/.main.mine.doctor.CommonListActivity";
     public final static String ACTIVITY_DIARY_CONTENT = "com.youxiang.soyoungapp/.ui.main.DiaryModelActivity";
     public final static String ACTIVITY_SETTING = "com.youxiang.soyoungapp/com.soyoung.module_setting.SettingActivity";
-
-
-
+    public final static String ACTIVITY_DIARY_DETAIL_CONTENT = "com.youxiang.soyoungapp/.main.BeautyContentNewActivity";
 
 
     //CLIENT端只发NEW_TASK/NEXT/BACK/STOP/DONE
-
-
-
-
 
 
     //ADB 总结:https://mazhuang.org/awesome-adb/#%E6%9F%A5%E7%9C%8B%E5%89%8D%E5%8F%B0-activity
@@ -99,15 +100,15 @@ public class UiViewIdConst {
 
 
     //NEXT函数
-        //有搜索按钮就点搜索按钮                    next
-        //有搜索输入框就点搜索输入框                 next
-        //有查找微信号:xxxxxxxxxx按钮就点这个按钮     next
-        //如果找不到，点击确定                      BACK
-        //如果找到，点击验证按钮进入验证页面          next
-        //如果是验证页面，点击发送按钮                back
-        //以上都不是                                 back
+    //有搜索按钮就点搜索按钮                    next
+    //有搜索输入框就点搜索输入框                 next
+    //有查找微信号:xxxxxxxxxx按钮就点这个按钮     next
+    //如果找不到，点击确定                      BACK
+    //如果找到，点击验证按钮进入验证页面          next
+    //如果是验证页面，点击发送按钮                back
+    //以上都不是                                 back
     //BACK To HOME函数
-        //一直按返回直到出现搜索按钮
-        //如果顶部不是WEIXIN，启动微信
+    //一直按返回直到出现搜索按钮
+    //如果顶部不是WEIXIN，启动微信
 
 }

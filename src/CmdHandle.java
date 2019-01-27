@@ -13,6 +13,7 @@ import android.content.pm.IPackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Rect;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.RemoteException;
@@ -311,27 +312,67 @@ public class CmdHandle {
             return;
         }
         //是否在搜索页面
-        if (ta.equals(UiViewIdConst.ACTIVITY_DIARY_CONTENT)) {
-            //日记内容页
-            task.indexOfPage++;
+        if (ta.equals(UiViewIdConst.ACTIVITY_DIARY_DETAIL_CONTENT)) {
+            //日记变美过程页
             //根据实际情况，这个地方要重连下UIAUTOMATOR
             run("input keyevent 4");
-            next("日记内容页，返回", 2);
+            next("日记变美过程页，返回", 2);
             uiAutomation.disconnect();
             uiAutomation.connect();
             return;
+        } else if (ta.equals(UiViewIdConst.ACTIVITY_DIARY_CONTENT)) {
+            //日记内容页
+            if (task.foundDetailFirstCountTTL < 1 || task.foundDetailFirst) {
+                task.indexOfPage++;
+                //根据实际情况，这个地方要重连下UIAUTOMATOR
+                run("input keyevent 4");
+                next("日记内容页，返回", 2);
+                uiAutomation.disconnect();
+                uiAutomation.connect();
+                return;
+            }
+            node = getByText(root, UiViewIdConst.TEXT_DIARY_DETAIL_FIRST);
+            if (node != null) {
+                if (node.getViewIdResourceName().equals(UiViewIdConst.ID_DIARY_DETAIL_ID)) {
+                    task.foundDetailFirst = true;
+                    next("日记变美过程中找到了第一篇，返回", 2);
+                    return;
+                }
+            }
+            if (task.isClickOpOfDetail) {
+                //找到当前页面的第一个内容页点击
+                node = getById(root, UiViewIdConst.ID_DIARY_DETAIL_CONTENT);
+                if (node == null) {
+                    next("日记变美过程中没有找到LIST，出错", 2);
+                    task.isClickOpOfDetail = false;
+                    return;
+                }
+                performClick(node, false);//不使用全局点击
+                next("点击日记变美过程内容", 2);
+                task.isClickOpOfDetail = false;
+                return;
+            } else {
+                node = getById(root, UiViewIdConst.ID_DIARY_DETAIL_LIST);
+                if (node == null) {
+                    next("日记变美过程中没有找到LIST，出错", 2);
+                    return;
+                }
+                node.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
+                task.foundDetailFirstCountTTL--;
+                task.isClickOpOfDetail = true;
+                next("日记变美过程中没有找到了第一篇，向下翻页", 2);
+                return;
+            }
         } else if (ta.equals(UiViewIdConst.ACTIVITY_DIARY_MAIN)) {
             //日记页
             node = getByText(root, UiViewIdConst.TEXT_DIARY_TOP_TITLE);
             if (node != null) {
                 if (node.getViewIdResourceName().equals(UiViewIdConst.ID_DIARY_TOP_TITLE)) {
-                    //next("在日记页，准备操作，还没有写。。。", 2);
                     node = getById(root, UiViewIdConst.ID_DIARY_CONTENT_LIST);
                     if (node == null) {
                         next("在日记页没有找到列表", 2);
                         return;
                     }
-
                     //comment
                     List<AccessibilityNodeInfo> list1 = root.findAccessibilityNodeInfosByViewId(UiViewIdConst.ID_DIARY_COUNT);
 
@@ -385,6 +426,7 @@ public class CmdHandle {
                         }
 
                         //进入日记内容页
+                        task.resetDetail();
                         performClick(list1.get(task.indexOfPage));
 
                         return;
@@ -436,7 +478,7 @@ public class CmdHandle {
                     sleep(3);
                     node = getByText(root, UiViewIdConst.TEXT_BTN_RESULT);
                     if (node != null) {
-                        performClick(node, true);
+                        performClick(node);
                         next("查找到结果点击", 2);
                         return;
                     } else {
@@ -451,7 +493,7 @@ public class CmdHandle {
                             next("在首页找不到底部首页按钮", 2);
                             return;
                         }
-                        performClick(node, true);
+                        performClick(node);
                         next("登陆成功，点击底部首页按钮", 2);
                         return;
                     }
@@ -482,12 +524,8 @@ public class CmdHandle {
                         return;
                     } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
                         node = getById(root, UiViewIdConst.ID_MY_BTN);
-                        Rect rect = node.getBoundsInScreen();
-                        int left, top;
-                        left = rect.left + 2;
-                        top = rect.top + 2;
-                        System.out.println("my button left" + left + ",top:" + top);
                         if (node == null) {
+
                             next("在首页找不到 我的 按钮", 10);
                             return;
                         }
@@ -506,6 +544,12 @@ public class CmdHandle {
                         return;
                     } else if (ta.equals(UiViewIdConst.ACTIVITY_HOME)) {
                         task.oxygen_login_step = "init";
+                        node = getById(root, UiViewIdConst.ID_DISCOVER);
+                        if (node != null) {
+                            performClick(node, true);
+                            next("在首页找不到 我的 按钮,点击颜习社.", 10);
+                            return;
+                        }
                         next("找不到我的页面按钮", 2);
                         return;
                     } else {
@@ -579,6 +623,7 @@ public class CmdHandle {
                                 return;
                             }
                             performClick(node);
+                            task.oxygen_login_step = "check";
                             next("准备输入用户名和密码", 2);
                             return;
                         } else {
@@ -594,6 +639,21 @@ public class CmdHandle {
                         next("未知窗口(ACTIVITY:" + ta + ")", 2);
                         return;
                     }
+                case "check":
+                    task.ttl_login_wait_time--;
+                    if (task.ttl_login_wait_time > 0) {
+                        node = getById(root, UiViewIdConst.ID_LOGIN_SUBMIT_BTN);
+                        if (node == null) {
+                            next("在登陆页面找不到：登陆提交按钮", 10);
+                            return;
+                        }
+                        performClick(node);
+                        next("还没有登陆成功，等待中。。。", 2);
+                    } else {
+                        task.current_step = UiViewIdConst.NEXT_STEP_VPN_STOP;
+                        next("还没有登陆成功，等待超时，断开VPN。。。", 2);
+                    }
+                    return;
             }
 
             next("未知错误:" + ta + ")", 2);
@@ -612,7 +672,15 @@ public class CmdHandle {
     private void next_step_oxygen_stop(UiAutomation uiAutomation) throws JSONException {
         String ta = getTopActivity();
         AccessibilityNodeInfo node, root;
-        if (ta.equals(UiViewIdConst.ACTIVITY_DIARY_CONTENT)) {
+        if (ta.equals(UiViewIdConst.ACTIVITY_DIARY_DETAIL_CONTENT)) {
+            //日记变美过程页
+            //根据实际情况，这个地方要重连下UIAUTOMATOR
+            run("input keyevent 4");
+            next("日记变美过程页，返回", 2);
+            uiAutomation.disconnect();
+            uiAutomation.connect();
+            return;
+        } else if (ta.equals(UiViewIdConst.ACTIVITY_DIARY_CONTENT)) {
             //根据实际情况，这个地方要重连下UIAUTOMATOR
             run("input keyevent 4");
             next("准备退出,日记内容页，返回", 2);
@@ -703,6 +771,17 @@ public class CmdHandle {
         }
     }
 
+    private AccessibilityNodeInfo getByIdLast(AccessibilityNodeInfo root, String id) {
+        List<AccessibilityNodeInfo> l = root.findAccessibilityNodeInfosByViewId(id);
+        for (int i = l.size() - 1; i >= 0; i--) {
+            if (l.get(i).isVisibleToUser()) {
+                return l.get(i);
+            }
+        }
+
+        return null;
+    }
+
     private AccessibilityNodeInfo getById(AccessibilityNodeInfo root, String id) {
         List<AccessibilityNodeInfo> l = root.findAccessibilityNodeInfosByViewId(id);
         for (int i = 0; i < l.size(); i++) {
@@ -746,7 +825,7 @@ public class CmdHandle {
     }
 
     private void performClick(AccessibilityNodeInfo node) {
-        performClick(node, false);
+        performClick(node, true);
     }
 
     private void performClick(AccessibilityNodeInfo node, boolean input) {
@@ -901,17 +980,21 @@ public class CmdHandle {
     }
 
     public static void pasteText(AccessibilityNodeInfo info, String text) throws RemoteException {
-        IClipboard clipboardManager;
-        IBinder b = ServiceManager.getService("clipboard");
-        clipboardManager = IClipboard.Stub.asInterface(b);
-
-        ClipData clip = ClipData.newPlainText("text", text);
-        //clipboard.setPrimaryClip(clip);
-        clipboardManager.setPrimaryClip(clip, text);
+//        IClipboard clipboardManager;
+//        IBinder b = ServiceManager.getService("clipboard");
+//        clipboardManager = IClipboard.Stub.asInterface(b);
+//
+//        ClipData clip = ClipData.newPlainText("text", text);
+//        //clipboard.setPrimaryClip(clip);
+//        clipboardManager.setPrimaryClip(clip, text);
         //焦点（n是AccessibilityNodeInfo对象）
         info.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
+        Bundle arguments = new Bundle();
+        arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                text);
+        info.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments);
         ////粘贴进入内容
-        info.performAction(AccessibilityNodeInfo.ACTION_PASTE);
+        //info.performAction(AccessibilityNodeInfo.ACTION_PASTE);
     }
 }
 
